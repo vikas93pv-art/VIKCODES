@@ -24,7 +24,14 @@ import {
   HeartPulse,
   Gamepad2,
   GraduationCap,
-  MoreHorizontal
+  MoreHorizontal,
+  Search,
+  AlertCircle,
+  CheckCircle,
+  TrendingDown,
+  Calendar,
+  DollarSign,
+  Target
 } from 'lucide-react';
 import { 
   PieChart as RechartsPie, 
@@ -39,7 +46,9 @@ import {
   Area,
   BarChart,
   Bar,
-  LabelList
+  LabelList,
+  LineChart,
+  Line
 } from 'recharts';
 
 // --- Configuration ---
@@ -47,15 +56,71 @@ const SUPABASE_URL = 'https://mvtanlxccxxxfcqixczs.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12dGFubHhjY3h4eGZjcWl4Y3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNDY5NzcsImV4cCI6MjA4NDkyMjk3N30.5rSKgcSx29r0CJbOF0PVx-nr_cphzNHCSbWdt0D8rv8';
 
 const CATEGORIES = [
-  { name: 'Food', icon: Coffee, color: '#10b981' },
-  { name: 'Transport', icon: Car, color: '#3b82f6' },
-  { name: 'Shopping', icon: ShoppingBag, color: '#f59e0b' },
-  { name: 'Bills', icon: CreditCard, color: '#ef4444' },
-  { name: 'Entertainment', icon: Gamepad2, color: '#8b5cf6' },
-  { name: 'Health', icon: HeartPulse, color: '#ec4899' },
-  { name: 'Education', icon: GraduationCap, color: '#6366f1' },
-  { name: 'Other', icon: MoreHorizontal, color: '#a855f7' }
+  { name: 'Food', icon: Coffee, color: '#a7f3d0' },
+  { name: 'Transport', icon: Car, color: '#bfdbfe' },
+  { name: 'Shopping', icon: ShoppingBag, color: '#fde68a' },
+  { name: 'Bills', icon: CreditCard, color: '#fecaca' },
+  { name: 'Entertainment', icon: Gamepad2, color: '#ddd6fe' },
+  { name: 'Health', icon: HeartPulse, color: '#fbcfe8' },
+  { name: 'Education', icon: GraduationCap, color: '#c7d2fe' },
+  { name: 'Other', icon: MoreHorizontal, color: '#e9d5ff' }
 ];
+
+// --- Toast Notification Component ---
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+  const Icon = type === 'success' ? CheckCircle : type === 'error' ? AlertCircle : Activity;
+
+  return (
+    <div className={`fixed top-6 right-6 z-[600] ${bgColor} text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-5 duration-300`}>
+      <Icon className="w-5 h-5" />
+      <span className="font-bold text-sm">{message}</span>
+      <button onClick={onClose} className="ml-2 hover:bg-white/20 rounded-lg p-1 transition-colors">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+// --- Confirmation Dialog ---
+const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[550] flex items-center justify-center p-6 bg-neutral-900/60 backdrop-blur-md">
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="p-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-red-50 rounded-2xl">
+              <AlertCircle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-xl font-black text-neutral-900 tracking-tight">{title}</h3>
+          </div>
+          <p className="text-neutral-600 font-medium mb-6">{message}</p>
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 px-6 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-bold hover:bg-neutral-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Shared UI Components ---
 const Card = ({ children, className = "", title, subtitle, icon: Icon }) => (
@@ -75,22 +140,31 @@ const Card = ({ children, className = "", title, subtitle, icon: Icon }) => (
   </div>
 );
 
-const StatCard = ({ title, amount, gradient, textColor, isCurrency = true }) => (
+const StatCard = ({ title, amount, gradient, textColor, isCurrency = true, icon: Icon, trend }) => (
   <div className={`relative rounded-[2.5rem] p-8 overflow-hidden group transition-all hover:-translate-y-1 shadow-lg ${gradient}`}>
     <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
     <div className="relative z-10">
-      <p className={`${textColor} opacity-80 text-xs font-black uppercase tracking-[0.15em] mb-2`}>{title}</p>
+      <div className="flex items-center justify-between mb-2">
+        <p className={`${textColor} opacity-80 text-xs font-black uppercase tracking-[0.15em]`}>{title}</p>
+        {Icon && <Icon className={`w-5 h-5 ${textColor} opacity-60`} />}
+      </div>
       <h3 className={`text-4xl font-black ${textColor} tracking-tighter`}>
         {isCurrency 
           ? amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
           : amount.toLocaleString('en-IN')
         }
       </h3>
+      {trend && (
+        <div className={`flex items-center gap-1 mt-2 ${textColor} opacity-70`}>
+          {trend > 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+          <span className="text-xs font-bold">{Math.abs(trend)}% vs last period</span>
+        </div>
+      )}
     </div>
   </div>
 );
 
-// Custom Label for Pie Chart - Optimized for visibility
+// Custom Label for Pie Chart
 const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name }) => {
   const RADIAN = Math.PI / 180;
   const radius = outerRadius + 25;
@@ -111,6 +185,22 @@ const renderCustomizedPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, 
   );
 };
 
+// Insight Card Component
+const InsightCard = ({ icon: Icon, title, value, description, color }) => (
+  <div className="bg-white rounded-2xl p-6 border border-neutral-100 hover:shadow-lg transition-all">
+    <div className="flex items-start gap-4">
+      <div className={`p-3 rounded-xl ${color}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex-1">
+        <p className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-1">{title}</p>
+        <p className="text-2xl font-black text-neutral-900 tracking-tight mb-1">{value}</p>
+        <p className="text-xs text-neutral-500 font-medium">{description}</p>
+      </div>
+    </div>
+  </div>
+);
+
 export default function ExpenseTracker() {
   // --- State ---
   const [expenses, setExpenses] = useState([]);
@@ -120,6 +210,11 @@ export default function ExpenseTracker() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [toast, setToast] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, expenseId: null });
+  const [monthlyBudget, setMonthlyBudget] = useState(50000);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
 
   // Form State
   const [amount, setAmount] = useState('');
@@ -142,27 +237,35 @@ export default function ExpenseTracker() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+  };
+
   const fetchExpenses = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/Expenses?select=*&order=date.asc`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/Expenses?select=*&order=date.desc`, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=representation'
         }
       });
-      if (!res.ok) throw new Error('Fetch Error');
+      if (!res.ok) {
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
       const data = await res.json();
       setExpenses(data.map((e, index) => ({
         id: e.id || e.ID || `tx-${index}`, 
         amount: parseFloat(e.amount || 0),
         merchant: e.merchant || 'Unknown',
         category: e.category || 'Other',
-        paymentMode: e.paymentmode || 'Other',
+        paymentMode: e.paymentmode || e.paymentMode || 'Other',
         date: e.date
       })));
     } catch (err) {
-      console.error(err);
+      console.error('Fetch error:', err);
+      showToast('Failed to load expenses', 'error');
     } finally {
       setLoading(false);
       setIsSyncing(false);
@@ -173,11 +276,11 @@ export default function ExpenseTracker() {
 
   const filteredExpenses = useMemo(() => {
     const now = new Date();
-    return expenses.filter(e => {
+    let filtered = expenses.filter(e => {
       const eDate = new Date(e.date);
       if (timeframe === 'Week') {
         const diff = (now - eDate) / (1000 * 60 * 60 * 24);
-        return diff <= 7;
+        return diff <= 7 && diff >= 0;
       }
       if (timeframe === 'Month') {
         return eDate.getMonth() === now.getMonth() && eDate.getFullYear() === now.getFullYear();
@@ -187,9 +290,38 @@ export default function ExpenseTracker() {
       }
       return true; 
     });
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(e => 
+        e.merchant.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        e.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [expenses, timeframe, searchTerm]);
+
+  // Calculate previous period for trend
+  const previousPeriodExpenses = useMemo(() => {
+    const now = new Date();
+    return expenses.filter(e => {
+      const eDate = new Date(e.date);
+      if (timeframe === 'Week') {
+        const diff = (now - eDate) / (1000 * 60 * 60 * 24);
+        return diff > 7 && diff <= 14;
+      }
+      if (timeframe === 'Month') {
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+        return eDate.getMonth() === prevMonth.getMonth() && eDate.getFullYear() === prevMonth.getFullYear();
+      }
+      if (timeframe === 'Year') {
+        return eDate.getFullYear() === now.getFullYear() - 1;
+      }
+      return false;
+    });
   }, [expenses, timeframe]);
 
-  // Specific calculation for "This Week's Spends" (Last 7 days)
   const weeklySpends = useMemo(() => {
     const now = new Date();
     return expenses.reduce((sum, e) => {
@@ -200,7 +332,13 @@ export default function ExpenseTracker() {
   }, [expenses]);
 
   const totalExpenses = useMemo(() => filteredExpenses.reduce((sum, item) => sum + item.amount, 0), [filteredExpenses]);
+  const previousTotal = useMemo(() => previousPeriodExpenses.reduce((sum, item) => sum + item.amount, 0), [previousPeriodExpenses]);
   
+  const trend = useMemo(() => {
+    if (previousTotal === 0) return 0;
+    return Math.round(((totalExpenses - previousTotal) / previousTotal) * 100);
+  }, [totalExpenses, previousTotal]);
+
   const categoryData = useMemo(() => {
     const data = {};
     filteredExpenses.forEach(e => { data[e.category] = (data[e.category] || 0) + e.amount; });
@@ -226,6 +364,36 @@ export default function ExpenseTracker() {
     });
   }, [filteredExpenses]);
 
+  // Top merchants analysis
+  const topMerchants = useMemo(() => {
+    const merchantTotals = {};
+    filteredExpenses.forEach(e => {
+      merchantTotals[e.merchant] = (merchantTotals[e.merchant] || 0) + e.amount;
+    });
+    return Object.entries(merchantTotals)
+      .map(([merchant, total]) => ({ merchant, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+  }, [filteredExpenses]);
+
+  // Daily average
+  const dailyAverage = useMemo(() => {
+    if (filteredExpenses.length === 0) return 0;
+    const dates = [...new Set(filteredExpenses.map(e => e.date))];
+    return totalExpenses / dates.length;
+  }, [filteredExpenses, totalExpenses]);
+
+  // Budget remaining
+  const budgetRemaining = useMemo(() => {
+    if (timeframe !== 'Month') return null;
+    return monthlyBudget - totalExpenses;
+  }, [monthlyBudget, totalExpenses, timeframe]);
+
+  const budgetPercentage = useMemo(() => {
+    if (timeframe !== 'Month') return 0;
+    return Math.min((totalExpenses / monthlyBudget) * 100, 100);
+  }, [totalExpenses, monthlyBudget, timeframe]);
+
   const downloadCSV = (data, filename) => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + ["Date,Merchant,Category,Amount,PaymentMode", ...data.map(e => `${e.date},"${e.merchant}",${e.category},${e.amount},${e.paymentMode}`)].join("\n");
@@ -240,12 +408,14 @@ export default function ExpenseTracker() {
   const handleExportCSV = () => {
     downloadCSV(expenses, "expenses_export.csv");
     setIsExportOpen(false);
+    showToast('Expenses exported successfully!', 'success');
   };
 
   const handleDownloadTemplate = () => {
     const template = [{ date: "YYYY-MM-DD", merchant: "Store Name", category: "Food", amount: 100, paymentMode: "UPI" }];
     downloadCSV(template, "expense_template.csv");
     setIsExportOpen(false);
+    showToast('Template downloaded!', 'success');
   };
 
   const handleFileUpload = (event) => {
@@ -254,7 +424,7 @@ export default function ExpenseTracker() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const text = e.target.result;
-      const rows = text.split('\n').slice(1);
+      const rows = text.split('\n').slice(1).filter(row => row.trim());
       const newExpenses = rows.map(row => {
         const parts = row.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
         if (parts.length < 5 || isNaN(parts[3])) return null;
@@ -266,15 +436,27 @@ export default function ExpenseTracker() {
         try {
           const res = await fetch(`${SUPABASE_URL}/rest/v1/Expenses`, {
             method: 'POST',
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+            headers: { 
+              'apikey': SUPABASE_ANON_KEY, 
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            },
             body: JSON.stringify(newExpenses)
           });
           if (!res.ok) throw new Error('Upload Failed');
-          fetchExpenses();
-        } catch (err) { console.error(err); } finally { setIsSyncing(false); }
+          await fetchExpenses();
+          showToast(`${newExpenses.length} expenses imported!`, 'success');
+        } catch (err) { 
+          console.error(err);
+          showToast('Import failed', 'error');
+        } finally { 
+          setIsSyncing(false);
+        }
       }
     };
     reader.readAsText(file);
+    event.target.value = '';
   };
 
   const handleOpenEdit = (expense) => {
@@ -299,34 +481,86 @@ export default function ExpenseTracker() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSyncing(true);
     const payload = { amount: parseFloat(amount), merchant, category, paymentmode: paymentMode, date };
+    
     try {
-      let res = editingExpense 
-        ? await fetch(`${SUPABASE_URL}/rest/v1/Expenses?id=eq.${editingExpense.id}`, {
-            method: 'PATCH',
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          })
-        : await fetch(`${SUPABASE_URL}/rest/v1/Expenses`, {
-            method: 'POST',
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-      if (!res.ok) throw new Error('Action Failed');
-      fetchExpenses();
+      let res;
+      if (editingExpense) {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/Expenses?id=eq.${editingExpense.id}`, {
+          method: 'PATCH',
+          headers: { 
+            'apikey': SUPABASE_ANON_KEY, 
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        res = await fetch(`${SUPABASE_URL}/rest/v1/Expenses`, {
+          method: 'POST',
+          headers: { 
+            'apikey': SUPABASE_ANON_KEY, 
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(payload)
+        });
+      }
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Action Failed: ${errorText}`);
+      }
+      
+      await fetchExpenses();
       handleCloseModal();
-    } catch (err) { console.error(err); }
+      showToast(editingExpense ? 'Expense updated!' : 'Expense added!', 'success');
+    } catch (err) { 
+      console.error('Submit error:', err);
+      showToast(editingExpense ? 'Update failed' : 'Add failed', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
-  const handleDelete = async (id) => {
-    if(!window.confirm("Delete this transaction?")) return;
+  const handleDeleteConfirm = (id) => {
+    setConfirmDialog({ isOpen: true, expenseId: id });
+  };
+
+  const handleDelete = async () => {
+    const { expenseId } = confirmDialog;
+    setConfirmDialog({ isOpen: false, expenseId: null });
+    setIsSyncing(true);
+    
     try {
-      await fetch(`${SUPABASE_URL}/rest/v1/Expenses?id=eq.${id}`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/Expenses?id=eq.${expenseId}`, {
         method: 'DELETE',
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        headers: { 
+          'apikey': SUPABASE_ANON_KEY, 
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
       });
-      fetchExpenses();
-    } catch (err) { console.error(err); }
+      
+      if (!res.ok) {
+        throw new Error('Delete failed');
+      }
+      
+      await fetchExpenses();
+      showToast('Expense deleted!', 'success');
+    } catch (err) { 
+      console.error('Delete error:', err);
+      showToast('Delete failed', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleBudgetSave = () => {
+    showToast('Budget updated!', 'success');
+    setIsBudgetModalOpen(false);
   };
 
   if (loading) return (
@@ -341,6 +575,15 @@ export default function ExpenseTracker() {
 
   return (
     <div className="min-h-screen bg-[#FAFBFF] text-neutral-900 pb-20 font-sans selection:bg-neutral-900 selection:text-white">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <ConfirmDialog 
+        isOpen={confirmDialog.isOpen}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDialog({ isOpen: false, expenseId: null })}
+      />
+
       <div className="max-w-7xl mx-auto p-6 md:p-12">
         
         {/* Header */}
@@ -365,6 +608,7 @@ export default function ExpenseTracker() {
             <button 
               onClick={() => fileInputRef.current?.click()}
               className="group flex items-center gap-2 px-5 py-3 text-neutral-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:bg-neutral-50"
+              disabled={isSyncing}
             >
               <Upload className="w-4 h-4 transition-transform group-hover:-translate-y-0.5" /> Import
             </button>
@@ -389,142 +633,290 @@ export default function ExpenseTracker() {
               )}
             </div>
 
-            <button onClick={() => { setEditingExpense(null); setIsModalOpen(true); }} className="flex items-center gap-2 px-8 py-4 bg-neutral-900 text-white rounded-[1.2rem] text-xs font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:bg-neutral-800 transition-all active:scale-95">
+            <button 
+              onClick={() => { setEditingExpense(null); setIsModalOpen(true); }} 
+              className="flex items-center gap-2 px-8 py-4 bg-neutral-900 text-white rounded-[1.2rem] text-xs font-black uppercase tracking-widest shadow-[0_10px_30px_rgba(0,0,0,0.2)] hover:bg-neutral-800 transition-all active:scale-95"
+              disabled={isSyncing}
+            >
               <Plus className="w-4 h-4" /> New Transaction
             </button>
           </div>
         </header>
 
+        {/* Timeframe Toggle */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+          <div className="bg-white p-2 rounded-[2rem] border border-neutral-100 shadow-sm flex gap-2">
+            {['Week', 'Month', 'Year', 'All Time'].map(t => (
+              <button key={t} onClick={() => setTimeframe(t)} className={`px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${timeframe === t ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-500 hover:bg-neutral-50'}`}>{t}</button>
+            ))}
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+            <input 
+              type="text" 
+              placeholder="Search transactions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-white border border-neutral-100 rounded-2xl text-sm font-medium placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-colors"
+            />
+          </div>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <StatCard title={`${timeframe} Outflow`} amount={totalExpenses} gradient="bg-neutral-900" textColor="text-white" />
-          <StatCard title="This Week's Spends" amount={weeklySpends} gradient="bg-white border border-neutral-100" textColor="text-neutral-900" isCurrency={true} />
-          <StatCard title="Peak Category" amount={categoryData[0]?.value || 0} gradient="bg-indigo-600" textColor="text-white" />
+          <StatCard 
+            title={`${timeframe} Outflow`} 
+            amount={totalExpenses} 
+            gradient="bg-neutral-900" 
+            textColor="text-white" 
+            icon={Wallet}
+            trend={trend}
+          />
+          <StatCard 
+            title="This Week's Spends" 
+            amount={weeklySpends} 
+            gradient="bg-gradient-to-br from-blue-500 to-blue-600" 
+            textColor="text-white"
+            icon={Calendar}
+          />
+          <StatCard 
+            title="Total Transactions" 
+            amount={filteredExpenses.length} 
+            gradient="bg-gradient-to-br from-emerald-500 to-emerald-600" 
+            textColor="text-white" 
+            isCurrency={false}
+            icon={Activity}
+          />
         </div>
 
-        {/* Navigation & Controls */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
-            <div className="bg-white p-2 rounded-[1.8rem] flex items-center gap-1 border border-neutral-100 shadow-sm w-fit">
-                <button 
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`flex items-center gap-3 px-8 py-3.5 rounded-[1.4rem] text-xs font-black uppercase tracking-[0.1em] transition-all ${activeTab === 'dashboard' ? 'bg-neutral-900 text-white shadow-xl' : 'text-neutral-400 hover:text-neutral-600'}`}
-                >
-                    <LayoutDashboard className="w-4 h-4" /> Dashboard
-                </button>
-                <button 
-                    onClick={() => setActiveTab('transactions')}
-                    className={`flex items-center gap-3 px-8 py-3.5 rounded-[1.4rem] text-xs font-black uppercase tracking-[0.1em] transition-all ${activeTab === 'transactions' ? 'bg-neutral-900 text-white shadow-xl' : 'text-neutral-400 hover:text-neutral-600'}`}
-                >
-                    <List className="w-4 h-4" /> Journal
-                </button>
-            </div>
-
-            {activeTab === 'dashboard' && (
-                <div className="flex items-center gap-1.5 bg-neutral-100/50 p-2 rounded-[1.5rem] w-fit">
-                    {['Week', 'Month', 'Year', 'All'].map(t => (
-                        <button 
-                            key={t}
-                            onClick={() => setTimeframe(t)}
-                            className={`px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${timeframe === t ? 'bg-white text-neutral-900 shadow-sm border border-neutral-200/50' : 'text-neutral-400 hover:text-neutral-50'}`}
-                        >
-                            {t}
-                        </button>
-                    ))}
+        {/* Budget Tracker (Only for Month view) */}
+        {timeframe === 'Month' && (
+          <div className="mb-12">
+            <Card title="Monthly Budget" subtitle="Track your spending" icon={Target}>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-bold text-neutral-600">Budget: ₹{monthlyBudget.toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-bold text-neutral-600">Spent: ₹{totalExpenses.toLocaleString('en-IN')}</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsBudgetModalOpen(true)}
+                    className="px-4 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 transition-colors"
+                  >
+                    Set Budget
+                  </button>
                 </div>
-            )}
+                <div className="relative h-6 bg-neutral-100 rounded-full overflow-hidden">
+                  <div 
+                    className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${
+                      budgetPercentage > 90 ? 'bg-red-500' : budgetPercentage > 70 ? 'bg-yellow-500' : 'bg-emerald-500'
+                    }`}
+                    style={{ width: `${budgetPercentage}%` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-black text-neutral-700">{budgetPercentage.toFixed(0)}%</span>
+                  </div>
+                </div>
+                {budgetRemaining !== null && (
+                  <p className={`text-sm font-bold ${budgetRemaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {budgetRemaining >= 0 
+                      ? `₹${budgetRemaining.toLocaleString('en-IN')} remaining` 
+                      : `₹${Math.abs(budgetRemaining).toLocaleString('en-IN')} over budget`
+                    }
+                  </p>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Tab Navigation */}
+        <div className="bg-white p-2 rounded-[2rem] border border-neutral-100 shadow-sm mb-10 flex gap-2 w-fit">
+          <button onClick={() => setActiveTab('dashboard')} className={`flex items-center gap-2 px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'dashboard' ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-500 hover:bg-neutral-50'}`}>
+            <LayoutDashboard className="w-4 h-4" /> Dashboard
+          </button>
+          <button onClick={() => setActiveTab('analytics')} className={`flex items-center gap-2 px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'analytics' ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-500 hover:bg-neutral-50'}`}>
+            <TrendingUp className="w-4 h-4" /> Analytics
+          </button>
+          <button onClick={() => setActiveTab('table')} className={`flex items-center gap-2 px-6 py-3 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'table' ? 'bg-neutral-900 text-white shadow-lg' : 'text-neutral-500 hover:bg-neutral-50'}`}>
+            <List className="w-4 h-4" /> Table View
+          </button>
         </div>
 
-        {/* Visualizations */}
-        <div className="relative min-h-[600px]">
+        {/* Main Content */}
+        <div className="space-y-8">
             {activeTab === 'dashboard' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    
-                    <Card title="Expense Velocity" subtitle="Accumulated spending" icon={TrendingUp} className="lg:col-span-2 h-[450px]">
+                <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
+                    <Card title="Expense Composition" subtitle="Category Distribution" icon={PieChart} className="lg:col-span-3 h-[400px]">
+                      {categoryData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={burnUpData}>
-                            <defs>
-                                <linearGradient id="colorBurn" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#171717" stopOpacity={0.1}/>
-                                    <stop offset="95%" stopColor="#171717" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="8 8" vertical={false} stroke="#f5f5f5" />
-                            <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{fill: '#A3A3A3', fontSize: 10, fontWeight: 700}} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#A3A3A3', fontSize: 10, fontWeight: 700}} />
+                          <RechartsPie>
+                            <Pie data={categoryData} cx="50%" cy="50%" labelLine={false} label={renderCustomizedPieLabel} outerRadius={100} dataKey="value" animationBegin={0} animationDuration={800}>
+                              {categoryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
                             <RechartsTooltip 
-                                contentStyle={{borderRadius: '1.5rem', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', padding: '1.2rem'}}
-                                itemStyle={{fontSize: '14px', fontWeight: '900', color: '#171717'}}
-                                labelStyle={{fontSize: '10px', fontWeight: '900', color: '#A3A3A3', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px'}}
-                                formatter={(val) => [`₹${val.toLocaleString()}`, 'Total Outflow']}
+                              contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}
+                              formatter={(val) => `₹${val.toLocaleString()}`}
                             />
-                            <Area type="monotone" dataKey="amount" stroke="#171717" strokeWidth={4} fill="url(#colorBurn)" />
-                        </AreaChart>
+                          </RechartsPie>
                         </ResponsiveContainer>
-                    </Card>
-
-                    <Card title="Allocation" subtitle="By Category" icon={PieChart} className="h-[450px]">
-                        {categoryData.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RechartsPie margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
-                                    <Pie 
-                                        data={categoryData} 
-                                        cx="50%" 
-                                        cy="50%" 
-                                        innerRadius={60} 
-                                        outerRadius={85} 
-                                        paddingAngle={5} 
-                                        dataKey="value"
-                                        stroke="none"
-                                        label={renderCustomizedPieLabel}
-                                        labelLine={{ stroke: '#e5e5e5', strokeWidth: 1 }}
-                                    >
-                                        {categoryData.map((entry, idx) => (
-                                            <Cell key={`cell-${idx}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip 
-                                        contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}
-                                        formatter={(val) => `₹${val.toLocaleString()}`} 
-                                    />
-                                </RechartsPie>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex items-center justify-center opacity-20"><p className="text-[10px] font-black uppercase tracking-widest text-neutral-400">Void Data</p></div>
-                        )}
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-neutral-400 font-bold">No data available</div>
+                      )}
                     </Card>
 
                     <Card title="Source Breakdown" subtitle="Distribution Magnitude" icon={CreditCard} className="lg:col-span-3 h-[400px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={categoryData} layout="vertical" margin={{ left: 20, right: 80, top: 20, bottom: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
-                          <XAxis type="number" hide />
-                          <YAxis 
-                            type="category" 
-                            dataKey="name" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{fill: '#171717', fontSize: 10, fontWeight: 900, textTransform: 'uppercase'}} 
-                          />
-                          <RechartsTooltip 
-                             cursor={{fill: '#f8fafc'}}
-                             contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}
-                             formatter={(val) => `₹${val.toLocaleString()}`}
-                          />
-                          <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={24}>
-                            {categoryData.map((entry, index) => (
-                              <Cell key={`bar-${index}`} fill={entry.color} />
-                            ))}
-                            <LabelList 
-                              dataKey="value" 
-                              position="right" 
-                              offset={12}
-                              formatter={(val) => `₹${val.toLocaleString()}`}
-                              style={{ fill: '#171717', fontSize: 10, fontWeight: 900, fontFamily: 'inherit' }}
+                      {categoryData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={categoryData} layout="vertical" margin={{ left: 20, right: 80, top: 20, bottom: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                            <XAxis type="number" hide />
+                            <YAxis 
+                              type="category" 
+                              dataKey="name" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{fill: '#171717', fontSize: 10, fontWeight: 900, textTransform: 'uppercase'}} 
                             />
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                            <RechartsTooltip 
+                               cursor={{fill: '#f8fafc'}}
+                               contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}
+                               formatter={(val) => `₹${val.toLocaleString()}`}
+                            />
+                            <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={24}>
+                              {categoryData.map((entry, index) => (
+                                <Cell key={`bar-${index}`} fill={entry.color} />
+                              ))}
+                              <LabelList 
+                                dataKey="value" 
+                                position="right" 
+                                offset={12}
+                                formatter={(val) => `₹${val.toLocaleString()}`}
+                                style={{ fill: '#171717', fontSize: 10, fontWeight: 900, fontFamily: 'inherit' }}
+                              />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-neutral-400 font-bold">No data available</div>
+                      )}
                     </Card>
+
+                    <Card title="Cumulative Burn" subtitle="Progressive Spending" icon={TrendingUp} className="lg:col-span-6 h-[350px]">
+                      {burnUpData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={burnUpData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#171717" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#171717" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="dateLabel" tick={{fill: '#171717', fontSize: 10, fontWeight: 900}} />
+                            <YAxis tick={{fill: '#171717', fontSize: 10, fontWeight: 900}} tickFormatter={(val) => `₹${(val/1000).toFixed(0)}k`} />
+                            <RechartsTooltip 
+                              contentStyle={{borderRadius: '1rem', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}
+                              labelFormatter={(label) => `Date: ${label}`}
+                              formatter={(val, name) => name === 'amount' ? [`₹${val.toLocaleString()}`, 'Cumulative'] : [`₹${val.toLocaleString()}`, 'Daily']}
+                            />
+                            <Area type="monotone" dataKey="amount" stroke="#171717" strokeWidth={3} fill="url(#colorAmount)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-neutral-400 font-bold">No data available</div>
+                      )}
+                    </Card>
+                </div>
+            ) : activeTab === 'analytics' ? (
+                <div className="space-y-8">
+                  {/* Key Insights */}
+                  <div>
+                    <h3 className="text-2xl font-black text-neutral-900 tracking-tight mb-6">Key Insights</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <InsightCard 
+                        icon={DollarSign}
+                        title="Daily Average"
+                        value={`₹${dailyAverage.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                        description={`Average spending per day in ${timeframe.toLowerCase()}`}
+                        color="bg-blue-50 text-blue-600"
+                      />
+                      <InsightCard 
+                        icon={TrendingUp}
+                        title="Highest Category"
+                        value={categoryData[0]?.name || 'N/A'}
+                        description={categoryData[0] ? `₹${categoryData[0].value.toLocaleString('en-IN')} spent` : 'No data'}
+                        color="bg-purple-50 text-purple-600"
+                      />
+                      <InsightCard 
+                        icon={ShoppingBag}
+                        title="Transaction Count"
+                        value={filteredExpenses.length}
+                        description={`Total transactions in ${timeframe.toLowerCase()}`}
+                        color="bg-emerald-50 text-emerald-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Top Merchants */}
+                  <Card title="Top Merchants" subtitle="Where you spend most" icon={ShoppingBag}>
+                    {topMerchants.length > 0 ? (
+                      <div className="space-y-4">
+                        {topMerchants.map((item, index) => (
+                          <div key={index} className="flex items-center justify-between p-4 bg-neutral-50 rounded-2xl hover:bg-neutral-100 transition-colors">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-neutral-900 text-white rounded-xl flex items-center justify-center font-black">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-black text-neutral-900">{item.merchant}</p>
+                                <p className="text-xs text-neutral-500 font-bold">
+                                  {filteredExpenses.filter(e => e.merchant === item.merchant).length} transactions
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-xl font-black text-neutral-900">₹{item.total.toLocaleString('en-IN')}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center text-neutral-400 font-bold py-8">No merchant data available</div>
+                    )}
+                  </Card>
+
+                  {/* Category-wise Trends */}
+                  <Card title="Category Analysis" subtitle="Spending by category" icon={PieChart}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {categoryData.map((cat, index) => {
+                        const percentage = ((cat.value / totalExpenses) * 100).toFixed(1);
+                        const catIcon = CATEGORIES.find(c => c.name === cat.name)?.icon || MoreHorizontal;
+                        const CatIcon = catIcon;
+                        return (
+                          <div key={index} className="p-4 bg-neutral-50 rounded-2xl">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl" style={{ backgroundColor: `${cat.color}20` }}>
+                                  <CatIcon className="w-4 h-4" style={{ color: cat.color }} />
+                                </div>
+                                <span className="font-black text-neutral-900 text-sm">{cat.name}</span>
+                              </div>
+                              <span className="text-xs font-black text-neutral-400">{percentage}%</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-black text-neutral-900">₹{cat.value.toLocaleString('en-IN')}</span>
+                              <span className="text-xs text-neutral-500 font-bold">
+                                {filteredExpenses.filter(e => e.category === cat.name).length} txns
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
                 </div>
             ) : (
                 <div className="bg-white rounded-[2.5rem] border border-neutral-100 shadow-[0_30px_60px_rgba(0,0,0,0.03)] overflow-hidden animate-in fade-in slide-in-from-right-8 duration-700">
@@ -533,55 +925,82 @@ export default function ExpenseTracker() {
                             <h3 className="text-2xl font-black tracking-tighter text-neutral-900">Transaction Journal</h3>
                             <p className="text-xs font-bold text-neutral-400 uppercase tracking-[0.15em] mt-1">Full Ledger History</p>
                         </div>
-                        <span className="px-6 py-2.5 bg-neutral-100 text-neutral-500 rounded-2xl text-[10px] font-black tracking-[0.2em] uppercase">{expenses.length} Entries</span>
+                        <span className="px-6 py-2.5 bg-neutral-100 text-neutral-500 rounded-2xl text-[10px] font-black tracking-[0.2em] uppercase">{filteredExpenses.length} Entries</span>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-neutral-50/30 border-b border-neutral-50">
-                                <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px]">Reference</th>
-                                <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px]">Entity</th>
-                                <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px]">Classification</th>
-                                <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px] text-right">Magnitude</th>
-                                <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px] text-right">Control</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-neutral-50">
-                            {expenses.slice().reverse().map((e) => {
-                                const cat = CATEGORIES.find(c => c.name.toLowerCase() === e.category.toLowerCase()) || CATEGORIES[7];
-                                return (
-                                <tr key={e.id} className="hover:bg-neutral-50/50 group transition-all duration-300">
-                                    <td className="py-6 px-10">
-                                        <div className="flex flex-col">
-                                            <span className="text-neutral-900 font-bold text-sm tracking-tight">{e.date}</span>
-                                            <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">{e.paymentMode}</span>
-                                        </div>
-                                    </td>
-                                    <td className="py-6 px-10 font-black text-neutral-900 text-base tracking-tight">{e.merchant}</td>
-                                    <td className="py-6 px-10">
-                                        <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-white border border-neutral-100 rounded-xl shadow-sm">
-                                            <cat.icon className="w-3.5 h-3.5" style={{color: cat.color}} />
-                                            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">{e.category}</span>
-                                        </div>
-                                    </td>
-                                    <td className="py-6 px-10 text-right font-black text-neutral-900 text-lg tracking-tighter">₹{e.amount.toLocaleString('en-IN')}</td>
-                                    <td className="py-6 px-10 text-right">
-                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                                            <button onClick={() => handleOpenEdit(e)} className="p-3 text-neutral-400 hover:text-neutral-900 hover:bg-white border border-transparent hover:border-neutral-200 rounded-2xl shadow-none hover:shadow-md transition-all"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => handleDelete(e.id)} className="p-3 text-neutral-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-neutral-200 rounded-2xl shadow-none hover:shadow-md transition-all"><Trash2 className="w-4 h-4" /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                );
-                            })}
-                        </tbody>
-                        </table>
-                    </div>
+                    {filteredExpenses.length > 0 ? (
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                          <thead>
+                              <tr className="bg-neutral-50/30 border-b border-neutral-50">
+                                  <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px]">Reference</th>
+                                  <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px]">Entity</th>
+                                  <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px]">Classification</th>
+                                  <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px] text-right">Magnitude</th>
+                                  <th className="py-6 px-10 font-black text-neutral-400 uppercase tracking-widest text-[10px] text-right">Control</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-50">
+                              {filteredExpenses.map((e) => {
+                                  const cat = CATEGORIES.find(c => c.name.toLowerCase() === e.category.toLowerCase()) || CATEGORIES[7];
+                                  return (
+                                  <tr key={e.id} className="hover:bg-neutral-50/50 group transition-all duration-300">
+                                      <td className="py-6 px-10">
+                                          <div className="flex flex-col">
+                                              <span className="text-neutral-900 font-bold text-sm tracking-tight">{e.date}</span>
+                                              <span className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">{e.paymentMode}</span>
+                                          </div>
+                                      </td>
+                                      <td className="py-6 px-10 font-black text-neutral-900 text-base tracking-tight">{e.merchant}</td>
+                                      <td className="py-6 px-10">
+                                          <div className="inline-flex items-center gap-2.5 px-4 py-2 bg-white border border-neutral-100 rounded-xl shadow-sm">
+                                              <cat.icon className="w-3.5 h-3.5" style={{color: cat.color}} />
+                                              <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">{e.category}</span>
+                                          </div>
+                                      </td>
+                                      <td className="py-6 px-10 text-right font-black text-neutral-900 text-lg tracking-tighter">₹{e.amount.toLocaleString('en-IN')}</td>
+                                      <td className="py-6 px-10 text-right">
+                                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                                              <button 
+                                                onClick={() => handleOpenEdit(e)} 
+                                                className="p-3 text-neutral-400 hover:text-neutral-900 hover:bg-white border border-transparent hover:border-neutral-200 rounded-2xl shadow-none hover:shadow-md transition-all"
+                                                disabled={isSyncing}
+                                              >
+                                                <Pencil className="w-4 h-4" />
+                                              </button>
+                                              <button 
+                                                onClick={() => handleDeleteConfirm(e.id)} 
+                                                className="p-3 text-neutral-400 hover:text-red-600 hover:bg-white border border-transparent hover:border-neutral-200 rounded-2xl shadow-none hover:shadow-md transition-all"
+                                                disabled={isSyncing}
+                                              >
+                                                <Trash2 className="w-4 h-4" />
+                                              </button>
+                                          </div>
+                                      </td>
+                                  </tr>
+                                  );
+                              })}
+                          </tbody>
+                          </table>
+                      </div>
+                    ) : (
+                      <div className="p-20 text-center">
+                        <Activity className="w-16 h-16 text-neutral-200 mx-auto mb-4" />
+                        <p className="text-neutral-400 font-bold">No transactions found</p>
+                        {searchTerm && (
+                          <button 
+                            onClick={() => setSearchTerm('')}
+                            className="mt-4 px-4 py-2 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 transition-colors"
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                      </div>
+                    )}
                 </div>
             )}
         </div>
 
-        {/* Modal */}
+        {/* Transaction Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-neutral-900/60 backdrop-blur-md">
             <div className="bg-white rounded-[3rem] w-full max-w-xl shadow-[0_50px_100px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 duration-300">
@@ -590,38 +1009,120 @@ export default function ExpenseTracker() {
                     <h2 className="text-3xl font-black text-neutral-900 tracking-tighter">{editingExpense ? 'Modify' : 'Draft'} Transaction</h2>
                     <p className="text-[10px] font-black text-neutral-400 uppercase tracking-widest mt-1">Configure Entry Parameters</p>
                 </div>
-                <button onClick={handleCloseModal} className="p-3 hover:bg-white rounded-2xl border border-transparent hover:border-neutral-100 transition-all"><X className="w-6 h-6"/></button>
+                <button onClick={handleCloseModal} className="p-3 hover:bg-white rounded-2xl border border-transparent hover:border-neutral-100 transition-all">
+                  <X className="w-6 h-6"/>
+                </button>
               </div>
               <form onSubmit={handleSubmit} className="p-10 space-y-8">
                 <div className="space-y-6">
                   <div>
                     <label className="text-[10px] font-black text-neutral-400 uppercase mb-3 block tracking-[0.2em] ml-1">Merchant Identity</label>
-                    <input type="text" placeholder="Where did this happen?" required value={merchant} onChange={(e) => setMerchant(e.target.value)} className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-bold text-lg placeholder:text-neutral-300 tracking-tight" />
+                    <input 
+                      type="text" 
+                      placeholder="Where did this happen?" 
+                      required 
+                      value={merchant} 
+                      onChange={(e) => setMerchant(e.target.value)} 
+                      className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-bold text-lg placeholder:text-neutral-300 tracking-tight" 
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                         <label className="text-[10px] font-black text-neutral-400 uppercase mb-3 block tracking-[0.2em] ml-1">Magnitude (₹)</label>
-                        <input type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-black text-2xl tracking-tighter" />
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          required 
+                          value={amount} 
+                          onChange={(e) => setAmount(e.target.value)} 
+                          className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-black text-2xl tracking-tighter" 
+                        />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-neutral-400 uppercase mb-3 block tracking-[0.2em] ml-1">Occurence Date</label>
-                        <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-black text-sm tracking-widest" />
+                        <label className="text-[10px] font-black text-neutral-400 uppercase mb-3 block tracking-[0.2em] ml-1">Occurrence Date</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={date} 
+                          onChange={(e) => setDate(e.target.value)} 
+                          className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-black text-sm tracking-widest" 
+                        />
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-neutral-400 uppercase mb-4 block tracking-[0.2em] ml-1">Taxonomy</label>
                     <div className="grid grid-cols-4 gap-3">
                       {CATEGORIES.map(c => (
-                        <button key={c.name} type="button" onClick={() => setCategory(c.name)} className={`group flex flex-col items-center justify-center p-4 rounded-[1.5rem] transition-all border-2 ${category === c.name ? 'bg-neutral-900 border-neutral-900 shadow-xl' : 'bg-white border-neutral-50 hover:border-neutral-200'}`}>
+                        <button 
+                          key={c.name} 
+                          type="button" 
+                          onClick={() => setCategory(c.name)} 
+                          className={`group flex flex-col items-center justify-center p-4 rounded-[1.5rem] transition-all border-2 ${category === c.name ? 'bg-neutral-900 border-neutral-900 shadow-xl' : 'bg-white border-neutral-50 hover:border-neutral-200'}`}
+                        >
                           <c.icon className={`w-5 h-5 mb-2 ${category === c.name ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-600'}`} />
                           <span className={`text-[8px] font-black uppercase tracking-widest ${category === c.name ? 'text-white' : 'text-neutral-400'}`}>{c.name}</span>
                         </button>
                       ))}
                     </div>
                   </div>
+                  <div>
+                    <label className="text-[10px] font-black text-neutral-400 uppercase mb-3 block tracking-[0.2em] ml-1">Payment Method</label>
+                    <select 
+                      value={paymentMode} 
+                      onChange={(e) => setPaymentMode(e.target.value)}
+                      className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-bold text-lg tracking-tight"
+                    >
+                      <option value="UPI">UPI</option>
+                      <option value="Card">Card</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Net Banking">Net Banking</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
                 </div>
-                <button type="submit" className="w-full py-6 bg-neutral-900 text-white rounded-[1.8rem] font-black shadow-[0_20px_40px_rgba(0,0,0,0.2)] hover:bg-neutral-800 transition-all active:scale-95 uppercase tracking-[0.25em] text-xs">Commit Transaction</button>
+                <button 
+                  type="submit" 
+                  disabled={isSyncing}
+                  className="w-full py-6 bg-neutral-900 text-white rounded-[1.8rem] font-black shadow-[0_20px_40px_rgba(0,0,0,0.2)] hover:bg-neutral-800 transition-all active:scale-95 uppercase tracking-[0.25em] text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSyncing ? 'Processing...' : 'Commit Transaction'}
+                </button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Budget Modal */}
+        {isBudgetModalOpen && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-neutral-900/60 backdrop-blur-md">
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="p-8 border-b border-neutral-50">
+                <h3 className="text-2xl font-black text-neutral-900 tracking-tight">Set Monthly Budget</h3>
+                <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-1">Track your spending goal</p>
+              </div>
+              <div className="p-8">
+                <label className="text-[10px] font-black text-neutral-400 uppercase mb-3 block tracking-[0.2em] ml-1">Budget Amount (₹)</label>
+                <input 
+                  type="number" 
+                  value={monthlyBudget} 
+                  onChange={(e) => setMonthlyBudget(parseFloat(e.target.value))}
+                  className="w-full px-7 py-5 bg-neutral-50 rounded-[1.5rem] border-2 border-transparent focus:border-neutral-900 focus:bg-white outline-none transition-all font-black text-2xl tracking-tighter mb-6" 
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setIsBudgetModalOpen(false)}
+                    className="flex-1 px-6 py-3 bg-neutral-100 text-neutral-700 rounded-xl font-bold hover:bg-neutral-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBudgetSave}
+                    className="flex-1 px-6 py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition-colors"
+                  >
+                    Save Budget
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
