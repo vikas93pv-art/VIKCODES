@@ -253,8 +253,8 @@ export default function ExpenseTracker() {
         throw new Error(`Failed to fetch: ${res.status}`);
       }
       const data = await res.json();
-      setExpenses(data.map((e, index) => ({
-        id: e.id || e.ID || `tx-${index}`, 
+      setExpenses(data.map((e) => ({
+        id: e.id, 
         amount: parseFloat(e.amount || 0),
         merchant: e.merchant || 'Unknown',
         category: e.category || 'Other',
